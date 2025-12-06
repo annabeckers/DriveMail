@@ -37,7 +37,7 @@ async def list_emails(user_id: str, query: str = None):
         raise HTTPException(status_code=400, detail=f"Gmail API error: {e}")
 
 
-@app.post("/read_email_history")
+@router.post("/read_email_history")
 async def read_email_history(data: ReadEmailHistoryInput):
     try:
         hist = await gmail_list_history(data.person)
