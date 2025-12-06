@@ -1,11 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-
-WebBrowser.maybeCompleteAuthSession();
 
 // Use localhost for Web, LAN IP for Native
 const BACKEND_URL = Platform.OS === 'web' 
@@ -13,16 +9,6 @@ const BACKEND_URL = Platform.OS === 'web'
   : 'http://192.168.179.49:8000'; 
 
 export default function App() {
-  // --- Auth State ---
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    // iosClientId: 'YOUR_IOS_CLIENT_ID',
-    // androidClientId: 'YOUR_ANDROID_CLIENT_ID',
-    webClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
-    scopes: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
-  });
-
-  const [userInfo, setUserInfo] = useState<any>(null);
-  
   // --- Audio State ---
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
@@ -32,40 +18,6 @@ export default function App() {
   // Web Recorder Ref
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      sendTokenToBackend(authentication?.accessToken);
-      getUserInfo(authentication?.accessToken);
-    }
-  }, [response]);
-
-  const getUserInfo = async (token: string | undefined) => {
-    if (!token) return;
-    try {
-      const response = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const user = await response.json();
-      setUserInfo(user);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const sendTokenToBackend = async (token: string | undefined) => {
-    if (!token) return;
-    try {
-      await fetch(`${BACKEND_URL}/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-    } catch (e) {
-      console.error('Backend auth error:', e);
-    }
-  };
 
   // --- Audio Logic ---
   async function startRecording() {
@@ -215,15 +167,6 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>DriveMail</Text>
-        {userInfo ? (
-          <View style={styles.userInfo}>
-            <Text style={styles.userText}>Hi, {userInfo.given_name}</Text>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.loginBtn} onPress={() => promptAsync()}>
-            <Text style={styles.loginText}>Sign in with Google</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       <View style={styles.content}>
@@ -265,7 +208,7 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -275,25 +218,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#000',
-  },
-  userInfo: {
-    backgroundColor: '#E5E5EA',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  userText: {
-    fontWeight: '600',
-  },
-  loginBtn: {
-    backgroundColor: '#4285F4',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  loginText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   content: {
     flex: 1,
