@@ -1,5 +1,8 @@
-from fastapi import APIRouter
-from services.gmail import gmail_save_draft, gmail_send_message
+from fastapi import APIRouter, HTTPException
+from app.services.gmail import gmail_save_draft, gmail_send_message, gmail_list_history
+from app.services.llm import call_llm
+from app.models.gmail_write import DraftEmailInput, SendEmailInput
+
 
 router = APIRouter(prefix="/email")
 
@@ -20,7 +23,7 @@ async def draft_email(data: DraftEmailInput):
 @router.post("/send_email")
 async def send_email(data: SendEmailInput):
     try:
-        ok = await gmail_send_message(data.email_id)
+        ok = await gmail_send_message(data.draft_id)
         return {"success": ok}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

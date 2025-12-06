@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class WriteEmailInput(BaseModel):
+class DraftEmailInput(BaseModel):
     user_id: str  # typically "me"
     addressee: str
     subject: str

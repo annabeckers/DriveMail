@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from models.intent import IntentInput
-from services.llm import call_llm
+from app.models.intent import IntentInput
+from app.services.llm import call_llm
 
 router = APIRouter(prefix="/intent")
 

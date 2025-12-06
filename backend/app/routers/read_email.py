@@ -1,11 +1,11 @@
 from fastapi import APIRouter
-from models.gmail_read import ReadEmailInput
-from services.gmail import gmail_get_message, gmail_list_history, get_gmail_service
+from app.models.gmail_read import ReadEmailInput, ReadEmailHistoryInput
+from app.services.gmail import gmail_get_message, gmail_list_history, get_gmail_service
 
 router = APIRouter(prefix="/email")
 
 
-@app.get("/read_emails")
+@router.get("/read_emails")
 # Its better to use models as input, and please use the  json
 async def list_emails(user_id: str, query: str = None):
     service = get_gmail_service()

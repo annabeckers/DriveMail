@@ -1,24 +1,27 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-from .database import create_db_and_tables
-from app.routers import intent, read_email, write_email, speech, ai, auth
-
-from pydantic import BaseModel
-from email.message import EmailMessage
-from dotenv import load_dotenv
-from base64 import urlsafe_b64decode
-from email import message_from_bytes
-from typing import List, Optional, Dict, Any
-
-from googleapiclient.errors import HttpError
-from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
-import google.auth
-import os
 import base64
+import os
+import google.auth
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from typing import List, Optional, Dict, Any
+from email import message_from_bytes
+from base64 import urlsafe_b64decode
+from dotenv import load_dotenv
+from pydantic import BaseModel
+from app.models.intent import IntentInput
+from app.routers import intent, read_email, write_email, speech, ai, auth
+from .database import create_db_and_tables
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv, find_dotenv
 
-app = FastAPI()
+
+# Load environment variables at the very beginning
+load_dotenv(find_dotenv(), encoding='utf-8')
+
+
+app = FastAPI(title="DriveMail Backend")
 
 
 @app.on_event("startup")
@@ -40,6 +43,7 @@ app.include_router(read_email.router)
 app.include_router(write_email.router)
 app.include_router(ai.router)
 app.include_router(speech.router)
+app.include_router(auth.router)
 
 
 @app.get("/health")
@@ -54,41 +58,10 @@ def hello():
     return {"message": "Hello from FastAPI backend"}
 
 
-# ---- Models ----
-
-class IntentInput(BaseModel):
-    data: dict
-
-
-class ReadEmailInput(BaseModel):
-    user_id: str  # typically "me"
-    message_id: str
-
-
-class ReadEmailHistoryInput(BaseModel):
-    user_id: str
-    query: str = None  # optional search query to filter messages by e.g. from:/to:/subject
-
-
-class WriteEmailInput(BaseModel):
-    user_id: str  # typically "me"
-    addressee: str
-    subject: str
-    content_hint: str  # rough content, will send to LLM for tone/style
-
-
-class SendEmailInput(BaseModel):
-    user_id: str
-    draft_id: str
-
-
-# ---- Helpers ----
-
-
-async def call_llm(payload: dict) -> str:
-    # call your LLM API (with LLM_API_KEY) to generate a string (e-mail body) based on payload
-    # e.g. use httpx to POST to LLM endpoint. For now, stub:
-    return "Generated email body based on content_hint and history..."
+# Note: The functions below appear to be placeholders or duplicates of functionality
+# that might be better placed within your router files (e.g., `read_email.py`, `write_email.py`).
+# I'm leaving them here for now, but I recommend refactoring them into their
+# respective routers to keep your `main.py` clean and organized.
 
 
 def get_gmail_service() -> any:
