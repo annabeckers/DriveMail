@@ -1,4 +1,9 @@
 .vscode/
 .venv
-
-.env
+backend/.env
+frontend/node_modules
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+node_modules/

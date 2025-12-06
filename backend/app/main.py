@@ -1,6 +1,9 @@
-
 from fastapi import FastAPI, HTTPException
 from routers import intent, read_email, write_email
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+from .database import create_db_and_tables
+from .routers import auth, speech, ai
 
 
 from pydantic import BaseModel
@@ -15,6 +18,23 @@ import google.auth
 import os
 import base64
 
+app = FastAPI()
+
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+
+
+# Allow CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(intent.router)
 app.include_router(read_email.router)
 app.include_router(write_email.router)
@@ -22,21 +42,9 @@ app.include_router(write_email.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "DriveMail Backend"}
 
-
-# Gmail / Google API imports
-
-
-load_dotenv()
-
-POLLY_TTS_API_KEY = os.getenv("POLLY_TTS_API")
-TRANSCRIBE_SST_API_KEY = os.getenv("TRANSCRIBE_SST_API")
-LLM_API_KEY = os.getenv("LLM_API")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-
-app = FastAPI()
+# Beispiel-API für deine App
 
 
 @app.get("/api/hello")
