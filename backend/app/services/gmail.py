@@ -12,6 +12,8 @@ def get_gmail_service():
     )
     return build("gmail", "v1", credentials=creds)
 
+# Needs to be abstracted towards all kinds of emails and then call gmail
+
 
 async def gmail_get_message(user, message_id):
     # Replace with Google API client
@@ -31,3 +33,22 @@ async def gmail_save_draft(email_body):
 async def gmail_send_message(email_id):
     # Replace with Gmail send
     return True
+
+
+async def extract_email_body(raw_email: str) -> str:
+    decoded_bytes = urlsafe_b64decode(raw_email)
+    email_message = message_from_bytes(decoded_bytes)
+
+    # Get the email body
+    if email_message.is_multipart():
+        for part in email_message.walk():
+            content_type = part.get_content_type()
+            content_disposition = str(part.get("Content-Disposition"))
+
+            if content_type == "text/plain" and "attachment" not in content_disposition:
+                # Decode bytes to string
+                return part.get_payload(decode=True).decode()
+    else:
+        return email_message.get_payload(decode=True).decode()
+
+    return ""  # Fallback if no body found
