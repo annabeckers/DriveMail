@@ -80,6 +80,11 @@
           "prompt": "Welchen Inhalt soll ich im Entwurf speichern?"
         }
       ]
+    },
+    {
+      "name": "confirm_send",
+      "description": "Confirm sending a previously created draft",
+      "slots": []
     }
   ]
 }

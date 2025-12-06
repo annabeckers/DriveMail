@@ -20,7 +20,11 @@ export default function App() {
     // iosClientId: 'YOUR_IOS_CLIENT_ID',
     // androidClientId: 'YOUR_ANDROID_CLIENT_ID',
     webClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
-    scopes: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
+    scopes: [
+      'https://www.googleapis.com/auth/gmail.readonly', 
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/gmail.compose'
+    ],
     redirectUri: makeRedirectUri({
       scheme: 'frontend'
     }),

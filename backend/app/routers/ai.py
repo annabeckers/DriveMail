@@ -6,7 +6,11 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from sqlmodel import Session, select
 from ..database import get_session
-from ..models import User, Conversation, Message
+from ..models import User, Conversation, Message, Task, OAuthCredential
+from ..agents.email_writer import EmailWriterAgent
+from ..agents.email_reader import EmailReaderAgent
+from ..agents.email_summarizer import EmailSummarizerAgent
+from ..agents.send_email import SendEmailAgent
 from datetime import datetime
 
 load_dotenv()
@@ -46,14 +50,12 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
 
     # 1. Load Intent Schema
     try:
-        with open("example-json-output.json", "r") as f:
+        with open("example-json-output.json", "r", encoding="utf-8") as f:
             intent_schema = json.load(f)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not load intent schema: {e}")
 
     # 2. Get or Create Conversation
-    # For simplicity, we'll just get the last active conversation or create a new one
-    # In a real app, you might want to manage sessions more explicitly
     conversation = session.exec(select(Conversation).where(Conversation.user_id == request.user_id).order_by(Conversation.updated_at.desc())).first()
     
     if not conversation:
@@ -68,7 +70,6 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
     session.commit()
 
     # 4. Construct Prompt for Gemini
-    # We include the schema, current state, and the new user input
     current_state = json.loads(conversation.state)
     
     system_prompt = f"""
@@ -112,6 +113,67 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
             "intent": result_json.get("intent"),
             "slots": {**current_state.get("slots", {}), **result_json.get("slots", {})}
         }
+        
+        # Check if completed
+        if result_json.get("completed"):
+            # Execute Agent
+            intent_name = result_json.get("intent")
+            slots = new_state["slots"]
+            
+            # Get User Credentials
+            creds = session.exec(select(OAuthCredential).where(OAuthCredential.user_id == request.user_id)).first()
+            if not creds:
+                result_json["response"] = "Fehler: Keine Anmeldeinformationen gefunden."
+            else:
+                agent_response = None
+                if intent_name == "send_email" or intent_name == "save_draft":
+                     agent = EmailWriterAgent(creds)
+                     agent_response = agent.execute(slots)
+                elif intent_name == "read_emails":
+                     agent = EmailReaderAgent(creds)
+                     agent_response = agent.execute(slots)
+                elif intent_name == "summarize_emails":
+                     agent = EmailSummarizerAgent(creds)
+                     agent_response = agent.execute(slots)
+                elif intent_name == "confirm_send":
+                     # We need to find the last draft created in this conversation
+                     last_task = session.exec(select(Task).where(Task.conversation_id == conversation.id).where(Task.intent == "send_email").order_by(Task.created_at.desc())).first()
+                     
+                     draft_id = None
+                     if last_task and last_task.result:
+                         try:
+                             last_result = json.loads(last_task.result)
+                             draft_id = last_result.get("draft_id")
+                         except:
+                             pass
+                     
+                     if draft_id:
+                         agent = SendEmailAgent(creds)
+                         agent_response = agent.execute({"draft_id": draft_id})
+                     else:
+                         agent_response = {"status": "error", "message": "Kein Entwurf zum Senden gefunden."}
+                
+                if agent_response:
+                    # Create Task Record
+                    task = Task(
+                        conversation_id=conversation.id,
+                        intent=intent_name,
+                        slots=json.dumps(slots),
+                        status=agent_response.get("status", "completed"),
+                        result=json.dumps(agent_response),
+                        completed_at=datetime.utcnow()
+                    )
+                    session.add(task)
+                    
+                    # Update Response to User
+                    if agent_response.get("status") == "success":
+                        # Just return the message directly for voice clarity
+                        result_json["response"] = agent_response.get('message')
+                        # Reset State after successful execution
+                        new_state = {} 
+                    else:
+                        result_json["response"] = f"Fehler: {agent_response.get('message')}"
+
         conversation.state = json.dumps(new_state)
         conversation.updated_at = datetime.utcnow()
         session.add(conversation)
