@@ -4,6 +4,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from email.message import EmailMessage
 from dotenv import load_dotenv
+from typing import List, Optional, Dict, Any
+
 
 # Gmail / Google API imports
 import google.auth
@@ -13,12 +15,12 @@ from googleapiclient.errors import HttpError
 
 
 load_dotenv()
-GMAIL_API_KEY = os.getenv("GMAIL_API")
+
 POLLY_TTS_API_KEY = os.getenv("POLLY_TTS_API")
 TRANSCRIBE_SST_API_KEY = os.getenv("TRANSCRIBE_SST_API")
 LLM_API_KEY = os.getenv("LLM_API")
-# NOTE: For Gmail API, we assume OAuth credentials (client_secret.json) + token storage + authorization done separately.
-
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 app = FastAPI()
 

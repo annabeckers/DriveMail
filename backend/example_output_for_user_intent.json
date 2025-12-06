@@ -46,26 +46,6 @@
         "attachments": ["string (file paths or URLs)"],
         "draft_name": "string"
       }
-    },
-    {
-      "action": "reply_email",
-      "parameters": {
-        "email_id": "string",
-        "body": "string",
-        "include_original": "boolean",
-        "attachments": ["string (file paths or URLs)"]
-      }
-    },
-    {
-      "action": "forward_email",
-      "parameters": {
-        "email_id": "string",
-        "to": ["string"],
-        "cc": ["string"],
-        "bcc": ["string"],
-        "body": "string (optional additional text)",
-        "include_attachments": "boolean"
-      }
     }
   ]
 }
