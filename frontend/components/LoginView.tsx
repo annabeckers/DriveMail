@@ -25,7 +25,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin
         androidClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
         iosClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
         webClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
-        scopes: ['https://www.googleapis.com/auth/gmail.send'],
+        scopes: ['https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.readonly', 
+            'https://www.googleapis.com/auth/gmail.compose'
+        ],
         // Use auto-generated Proxy URI with returnUrl handling
         // @ts-ignore: useProxy is deprecated in types but required for correct Proxy flow in some versions
         redirectUri: makeRedirectUri({ useProxy: true }),
