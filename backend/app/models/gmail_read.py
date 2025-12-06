@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 
 class ReadEmailInput(BaseModel):
     user_id: str  # typically "me"
