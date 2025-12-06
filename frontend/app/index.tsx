@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
+import { StyleSheet, SafeAreaView, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import { Audio } from 'expo-av';
-import { Ionicons } from '@expo/vector-icons';
+import LoginScreen from '../components/LoginScreen';
+import ChatScreen from '../components/ChatScreen';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,9 +21,13 @@ export default function App() {
     // androidClientId: 'YOUR_ANDROID_CLIENT_ID',
     webClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
     scopes: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
+    redirectUri: makeRedirectUri({
+      scheme: 'frontend'
+    }),
   });
 
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   
   // --- Audio State ---
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
@@ -33,37 +39,64 @@ export default function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  // --- Chat State ---
+  const [messages, setMessages] = useState<any[]>([]);
+
   useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;
-      sendTokenToBackend(authentication?.accessToken);
-      getUserInfo(authentication?.accessToken);
+      handleLogin(authentication?.accessToken);
+    } else if (response?.type === 'error') {
+      setLoginError("Google Sign-In failed.");
     }
   }, [response]);
 
-  const getUserInfo = async (token: string | undefined) => {
+  const handleLogin = async (token: string | undefined) => {
     if (!token) return;
+    setLoginError(null);
+
+    let googleUser = null;
+    let dbId = null;
+
+    // 1. Get Google User Info
     try {
       const response = await fetch('https://www.googleapis.com/userinfo/v2/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const user = await response.json();
-      setUserInfo(user);
+      googleUser = await response.json();
     } catch (error) {
-      console.log(error);
+      console.log("Google User Info Error:", error);
+      setLoginError("Failed to fetch Google profile.");
+      return;
     }
-  };
 
-  const sendTokenToBackend = async (token: string | undefined) => {
-    if (!token) return;
+    // 2. Authenticate with Backend & Get DB ID
     try {
-      await fetch(`${BACKEND_URL}/auth/google`, {
+      const res = await fetch(`${BACKEND_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       });
+      
+      if (!res.ok) {
+        throw new Error("Backend auth failed");
+      }
+
+      const data = await res.json();
+      if (data.user_id) {
+        dbId = data.user_id;
+      }
     } catch (e) {
       console.error('Backend auth error:', e);
+      setLoginError("Failed to connect to backend.");
+      return;
+    }
+
+    // 3. Update State safely
+    if (googleUser && dbId) {
+      setUserInfo({ ...googleUser, db_id: dbId });
+    } else {
+      setLoginError("Login incomplete. Please try again.");
     }
   };
 
@@ -136,6 +169,10 @@ export default function App() {
       const data = await res.json();
       if (data.text) {
         setTranscription(data.text);
+        // Add user message to chat
+        setMessages(prev => [...prev, { role: 'user', content: data.text }]);
+        // Process Intent
+        await processIntent(data.text);
       } else {
         setTranscription('Could not transcribe audio.');
       }
@@ -200,6 +237,10 @@ export default function App() {
       const data = await res.json();
       if (data.text) {
         setTranscription(data.text);
+        // Add user message to chat
+        setMessages(prev => [...prev, { role: 'user', content: data.text }]);
+        // Process Intent
+        await processIntent(data.text);
       } else {
         setTranscription('Could not transcribe audio.');
       }
@@ -211,48 +252,54 @@ export default function App() {
     }
   }
 
+  async function processIntent(text: string) {
+    console.log("Processing intent for:", text);
+    
+    if (!userInfo?.db_id) {
+      console.error("User ID not found. Please log in.");
+      setMessages(prev => [...prev, { role: 'assistant', content: "Bitte melden Sie sich an, um fortzufahren." }]);
+      return;
+    }
+
+    try {
+      console.log("Sending to backend with user_id:", userInfo.db_id);
+      const res = await fetch(`${BACKEND_URL}/ai/process_intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, user_id: userInfo.db_id }),
+      });
+      
+      const data = await res.json();
+      console.log("Backend response:", data);
+      
+      if (data.response) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      }
+    } catch (e) {
+      console.error("Intent processing error:", e);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Fehler bei der Verarbeitung." }]);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>DriveMail</Text>
-        {userInfo ? (
-          <View style={styles.userInfo}>
-            <Text style={styles.userText}>Hi, {userInfo.given_name}</Text>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.loginBtn} onPress={() => promptAsync()}>
-            <Text style={styles.loginText}>Sign in with Google</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.micContainer}>
-          <TouchableOpacity
-            style={[styles.micButton, isRecording && styles.micButtonActive]}
-            onPress={isRecording ? stopRecording : startRecording}
-            disabled={isProcessing}
-          >
-            <Ionicons 
-              name={isRecording ? "stop" : "mic"} 
-              size={50} 
-              color="white" 
-            />
-          </TouchableOpacity>
-          <Text style={styles.statusText}>
-            {isRecording ? 'Recording...' : isProcessing ? 'Processing...' : 'Tap to Speak'}
-          </Text>
-        </View>
-
-        {isProcessing && <ActivityIndicator size="large" color="#007AFF" style={{marginTop: 20}} />}
-
-        {transcription ? (
-          <View style={styles.resultCard}>
-            <Text style={styles.resultLabel}>Transcription:</Text>
-            <Text style={styles.resultText}>{transcription}</Text>
-          </View>
-        ) : null}
-      </View>
+      {!userInfo ? (
+        <LoginScreen 
+          promptAsync={() => promptAsync()} 
+          request={request}
+          error={loginError}
+        />
+      ) : (
+        <ChatScreen 
+          userInfo={userInfo}
+          messages={messages}
+          isRecording={isRecording}
+          isProcessing={isProcessing}
+          startRecording={startRecording}
+          stopRecording={stopRecording}
+          transcription={transcription}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -261,100 +308,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F7',
-  },
-  header: {
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#000',
-  },
-  userInfo: {
-    backgroundColor: '#E5E5EA',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  userText: {
-    fontWeight: '600',
-  },
-  loginBtn: {
-    backgroundColor: '#4285F4',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  loginText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  micContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  micButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.30,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  micButtonActive: {
-    backgroundColor: '#FF3B30',
-    transform: [{ scale: 1.1 }],
-  },
-  statusText: {
-    marginTop: 20,
-    fontSize: 18,
-    color: '#8E8E93',
-    fontWeight: '500',
-  },
-  resultCard: {
-    backgroundColor: '#fff',
-    width: '100%',
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  resultLabel: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    fontWeight: '600',
-  },
-  resultText: {
-    fontSize: 18,
-    color: '#000',
-    lineHeight: 24,
   },
 });

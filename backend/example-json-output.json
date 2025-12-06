@@ -1,0 +1,85 @@
+{
+  "intents": [
+    {
+      "name": "send_email",
+      "description": "Send an email to a recipient",
+      "slots": [
+        {
+          "name": "recipient",
+          "description": "The email address or name of the person to send the email to",
+          "required": true,
+          "prompt": "An wen möchten Sie die E-Mail senden?"
+        },
+        {
+          "name": "subject",
+          "description": "The subject of the email",
+          "required": true,
+          "prompt": "Was ist der Betreff der E-Mail?"
+        },
+        {
+          "name": "body",
+          "description": "The content or message of the email",
+          "required": true,
+          "prompt": "Was ist die Nachricht, die Sie senden möchten?"
+        }
+      ]
+    },
+    {
+      "name": "read_emails",
+      "description": "Read recent emails with optional filtering",
+      "slots": [
+        {
+          "name": "limit",
+          "description": "Number of emails to read",
+          "required": false,
+          "default": 5
+        },
+        {
+          "name": "sender",
+          "description": "Filter emails by a specific sender name or email",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "summarize_emails",
+      "description": "Summarize recent emails or a specific email",
+      "slots": [
+        {
+          "name": "limit",
+          "description": "Number of emails to summarize",
+          "required": false,
+          "default": 3
+        },
+        {
+          "name": "sender",
+          "description": "Filter emails to summarize by a specific sender",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "save_draft",
+      "description": "Save an email as a draft without sending",
+      "slots": [
+        {
+          "name": "recipient",
+          "description": "The email address or name of the person (optional for drafts)",
+          "required": false
+        },
+        {
+          "name": "subject",
+          "description": "The subject of the draft",
+          "required": true,
+          "prompt": "Was ist der Betreff des Entwurfs?"
+        },
+        {
+          "name": "body",
+          "description": "The content of the draft",
+          "required": true,
+          "prompt": "Welchen Inhalt soll ich im Entwurf speichern?"
+        }
+      ]
+    }
+  ]
+}
