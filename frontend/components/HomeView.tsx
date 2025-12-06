@@ -57,11 +57,18 @@ export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, pulseAni
 
                 {status === 'listening' && (
                     <View style={styles.listeningState}>
-                        <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }] }]}>
-                            <View style={styles.micCircleActive}>
-                                <Mic color="#fff" size={72} />
-                            </View>
-                        </Animated.View>
+                        <TouchableOpacity onPress={onStartListening} activeOpacity={0.9}>
+                            <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }] }]}>
+                                <ExpoLinearGradient
+                                    colors={['#3b82f6', '#8b5cf6', '#ec4899']}
+                                    style={styles.micCircleActive}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    <Mic color="#fff" size={72} />
+                                </ExpoLinearGradient>
+                            </Animated.View>
+                        </TouchableOpacity>
                         <Text style={styles.statusTextBlue}>Ich höre zu...</Text>
                         <Text style={styles.transcriptLive}>{transcript}</Text>
                     </View>
@@ -205,11 +212,8 @@ const styles = StyleSheet.create({
         width: 140,
         height: 140,
         borderRadius: 70,
-        backgroundColor: '#2563eb',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 4,
-        borderColor: '#60a5fa',
         elevation: 10,
         shadowColor: '#3b82f6',
         shadowOffset: { width: 0, height: 0 },
