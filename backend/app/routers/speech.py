@@ -3,14 +3,70 @@ import shutil
 import tempfile
 import time
 import subprocess
-from fastapi import APIRouter, HTTPException, UploadFile, File
+import uuid
+from fastapi import APIRouter, HTTPException, UploadFile, File, Body
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import google.generativeai as genai
+from google.cloud import texttospeech
 from imageio_ffmpeg import get_ffmpeg_exe
 
 load_dotenv()
 
 router = APIRouter()
+
+# Initialize Google Cloud TTS Client
+# Ensure GOOGLE_APPLICATION_CREDENTIALS is set in your environment or .env
+try:
+    tts_client = texttospeech.TextToSpeechClient()
+except Exception as e:
+    print(f"Warning: Could not initialize Google TTS Client: {e}")
+    tts_client = None
+
+class SpeakRequest(BaseModel):
+    text: str
+
+@router.post("/speak")
+async def speak_text(request: SpeakRequest):
+    """
+    Generate speech from text using Google Cloud Text-to-Speech (Neural2 Voice).
+    """
+    if not tts_client:
+        raise HTTPException(status_code=500, detail="Google TTS Client not initialized. Check credentials.")
+
+    try:
+        # Configure the request
+        synthesis_input = texttospeech.SynthesisInput(text=request.text)
+        
+        # Select the language and voice (German Neural2 Female)
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="de-DE",
+            name="de-DE-Neural2-F",
+        )
+        
+        # Select the type of audio file you want returned
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3
+        )
+
+        # Perform the text-to-speech request
+        response = tts_client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice,
+            audio_config=audio_config,
+        )
+
+        # Save to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            tmp.write(response.audio_content)
+            output_file = tmp.name
+
+        return FileResponse(output_file, media_type="audio/mpeg", filename="speech.mp3")
+
+    except Exception as e:
+        print(f"Google TTS Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):

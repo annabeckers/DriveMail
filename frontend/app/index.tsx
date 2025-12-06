@@ -278,10 +278,43 @@ export default function App() {
       
       if (data.response) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+        // Automatically read out the response
+        speakText(data.response);
       }
     } catch (e) {
       console.error("Intent processing error:", e);
       setMessages(prev => [...prev, { role: 'assistant', content: "Fehler bei der Verarbeitung." }]);
+    }
+  }
+
+  async function speakText(text: string) {
+    try {
+      // For Native, we need to download the file to a local path
+      if (Platform.OS !== 'web') {
+        // We can't easily stream a POST body response to audio in Expo without saving.
+        // Alternative: Use a GET request if text is short, or just accept the limitation for now.
+        // Let's try to use the FileSystem if available, otherwise skip.
+        // Since we don't have expo-file-system imported, we will skip native TTS for this step
+        // unless we add it.
+        console.log("TTS is currently optimized for Web. Native requires FileSystem.");
+        return;
+      }
+
+      const res = await fetch(`${BACKEND_URL}/speech/speak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      
+      if (!res.ok) throw new Error('TTS failed');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new window.Audio(url);
+      audio.play();
+      
+    } catch (e) {
+      console.error("TTS Error:", e);
     }
   }
 

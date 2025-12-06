@@ -76,6 +76,12 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
     You are an intelligent assistant for an email app called DriveMail.
     Your goal is to classify the user's intent and extract necessary information based on the provided schema.
     
+    Capabilities:
+    - You can READ emails ("Lies meine E-Mails", "Was gibt es Neues?").
+    - You can SUMMARIZE emails ("Fasse meine E-Mails zusammen", "Worum geht es in der Mail von X?").
+    - You can WRITE and SEND emails ("Schreibe eine E-Mail an X", "Antworte auf die letzte Mail").
+    - You can answer general questions about what you can do (Chitchat).
+    
     Schema:
     {json.dumps(intent_schema, indent=2)}
     
@@ -89,7 +95,8 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
     2. Extract values for the slots defined in the schema for that intent.
     3. If a required slot is missing, your 'response' should be the 'prompt' defined in the schema for that slot.
     4. If all required slots are filled, your 'response' should be a confirmation message in German, like "Bereit, die E-Mail an [recipient] mit dem Betreff [subject] zu senden...".
-    5. Return a JSON object with the following structure:
+    5. If the intent is 'chitchat', provide a helpful and natural response in German in the 'response' field. Explain your capabilities if asked.
+    6. Return a JSON object with the following structure:
     {{
         "intent": "string (name of the intent)",
         "slots": {{ "slot_name": "extracted_value" }},
@@ -135,6 +142,10 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
                 elif intent_name == "summarize_emails":
                      agent = EmailSummarizerAgent(creds)
                      agent_response = agent.execute(slots)
+                elif intent_name == "chitchat":
+                     # No agent needed, the response is already in result_json["response"]
+                     # But we need to ensure we don't treat it as an error or empty agent response
+                     agent_response = {"status": "success", "message": result_json.get("response")}
                 elif intent_name == "confirm_send":
                      # We need to find the last draft created in this conversation
                      last_task = session.exec(select(Task).where(Task.conversation_id == conversation.id).where(Task.intent == "send_email").order_by(Task.created_at.desc())).first()
