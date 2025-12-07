@@ -56,6 +56,7 @@ export default function App() {
   // --- AUDIO STATE ---
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
+  const [llmResponse, setLlmResponse] = useState('');
   
   // Animations Vars
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -219,19 +220,25 @@ export default function App() {
     
     try {
       const formData = new FormData();
-      // @ts-ignore
-      formData.append('file', {
-        uri,
-        name: 'recording.m4a',
-        type: 'audio/m4a'
-      });
+      
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const ext = blob.type.includes('webm') ? 'webm' : 'm4a';
+        formData.append('file', blob, `recording.${ext}`);
+      } else {
+        // @ts-ignore
+        formData.append('file', {
+          uri,
+          name: 'recording.m4a',
+          type: 'audio/m4a'
+        });
+      }
 
       const res = await fetch(`${BACKEND_URL}/speech/transcribe`, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // Do NOT set Content-Type header for FormData; fetch does it automatically with boundary
       });
 
       const data = await res.json();
@@ -269,6 +276,7 @@ export default function App() {
       console.log("Backend response:", data);
       
       if (data.response) {
+        setLlmResponse(data.response);
         speakText(data.response);
       }
       setStatus('idle');
@@ -353,6 +361,7 @@ export default function App() {
           <HomeView
             status={status}
             transcript={transcript}
+            llmResponse={llmResponse}
             pulseAnim={pulseAnim}
             spin={spin}
             onStartListening={toggleRecording}

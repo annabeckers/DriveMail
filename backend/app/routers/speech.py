@@ -70,6 +70,7 @@ async def speak_text(request: SpeakRequest):
 
 @router.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
+    print(f"Received file: {file.filename}, content_type: {file.content_type}")
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
@@ -86,11 +87,12 @@ async def transcribe_audio(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, tmp)
             tmp_path = tmp.name
 
-        # Convert WebM to MP3 if necessary
+        # Convert WebM/M4A to MP3 if necessary
         upload_path = tmp_path
-        if file_ext == 'webm':
-            converted_path = tmp_path.replace('.webm', '.mp3')
+        if file_ext in ['webm', 'm4a']:
+            converted_path = tmp_path.rsplit('.', 1)[0] + '.mp3'
             ffmpeg_exe = get_ffmpeg_exe()
+            print(f"Converting {file_ext} to mp3...")
             subprocess.run([
                 ffmpeg_exe, '-i', tmp_path, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '192k', converted_path
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

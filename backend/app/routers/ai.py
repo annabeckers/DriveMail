@@ -72,6 +72,10 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
     # 4. Construct Prompt for Gemini
     current_state = json.loads(conversation.state)
     
+    print(f"--- DEBUG: process_intent ---")
+    print(f"User Input: {request.text}")
+    print(f"Current State: {current_state}")
+    
     system_prompt = f"""
     You are an intelligent assistant for an email app called DriveMail.
     Your goal is to classify the user's intent and extract necessary information based on the provided schema.
@@ -113,7 +117,9 @@ def process_intent(request: IntentRequest, session: Session = Depends(get_sessio
         model = genai.GenerativeModel("gemini-2.0-flash", generation_config={"response_mime_type": "application/json"})
         
         response = model.generate_content(system_prompt)
+        print(f"DEBUG: LLM Raw Response: {response.text}")
         result_json = json.loads(response.text)
+        print(f"DEBUG: Extracted Intent Data: {json.dumps(result_json, indent=2)}")
         
         # 5. Update State
         new_state = {

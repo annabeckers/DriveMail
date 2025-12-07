@@ -7,12 +7,13 @@ import { DriveMailLogo } from './DriveMailLogo';
 interface HomeViewProps {
     status: string;
     transcript: string;
+    llmResponse?: string;
     pulseAnim: Animated.Value;
     spin: Animated.AnimatedInterpolation<string | number>;
     onStartListening: () => void;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, pulseAnim, spin, onStartListening }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmResponse, pulseAnim, spin, onStartListening }) => {
     return (
         <ExpoLinearGradient
             colors={['#0f172a', '#1e293b', '#0f172a']}
@@ -24,9 +25,18 @@ export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, pulseAni
 
                 {status === 'idle' && (
                     <View style={styles.idleState}>
-                        <View style={{ opacity: 0.8, marginBottom: 50 }}>
+                        <View style={{ opacity: 0.8, marginBottom: 20 }}>
                             <DriveMailLogo width={110} height={110} />
                         </View>
+                        
+                        {/* Last Interaction Display */}
+                        {(transcript || llmResponse) && (
+                            <View style={styles.lastInteractionBox}>
+                                {transcript ? <Text style={styles.userText}>You: "{transcript}"</Text> : null}
+                                {llmResponse ? <Text style={styles.aiText}>AI: "{llmResponse}"</Text> : null}
+                            </View>
+                        )}
+
                         <Text style={styles.promptText}>Tippen zum Sprechen</Text>
 
                         <TouchableOpacity
@@ -289,5 +299,23 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: 'white',
         letterSpacing: 0.5,
+    },
+    lastInteractionBox: {
+        marginBottom: 30,
+        padding: 15,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 12,
+        width: '90%',
+    },
+    userText: {
+        color: '#94a3b8',
+        fontSize: 14,
+        marginBottom: 8,
+        fontStyle: 'italic',
+    },
+    aiText: {
+        color: '#e2e8f0',
+        fontSize: 16,
+        fontWeight: '500',
     },
 });
