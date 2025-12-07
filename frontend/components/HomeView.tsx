@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Platform, ScrollView, Easing } from 'react-native';
-import { Mic, Send, CheckCircle, Loader2 } from 'lucide-react-native';
+import { Mic, Send, CheckCircle, Loader2, Square } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { DriveMailLogo } from './DriveMailLogo';
 
@@ -12,6 +12,7 @@ interface HomeViewProps {
     pulseAnim: Animated.Value;
     spin: Animated.AnimatedInterpolation<string | number>;
     onStartListening: () => void;
+    onStopSpeaking: () => void;
 }
 
 const TypewriterText = ({ text, style }: { text: string, style: any }) => {
@@ -20,16 +21,21 @@ const TypewriterText = ({ text, style }: { text: string, style: any }) => {
     useEffect(() => {
         setDisplayedText('');
         let i = 0;
-        const timer = setInterval(() => {
+        let timeoutId: any;
+
+        const typeChar = () => {
             if (i <= text.length) {
                 setDisplayedText(text.slice(0, i));
                 i++;
-            } else {
-                clearInterval(timer);
+                // Variable speed for realism and smoothness
+                timeoutId = setTimeout(typeChar, 15 + Math.random() * 15);
             }
-        }, 20); // Slightly faster typing
+        };
 
-        return () => clearInterval(timer);
+        // Start typing after a brief delay to allow layout to settle
+        timeoutId = setTimeout(typeChar, 100);
+
+        return () => clearTimeout(timeoutId);
     }, [text]);
 
     return <Text style={style}>{displayedText}</Text>;
@@ -89,7 +95,7 @@ const Waveform = () => {
     );
 };
 
-export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmResponse, isSpeaking, pulseAnim, spin, onStartListening }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmResponse, isSpeaking, pulseAnim, spin, onStartListening, onStopSpeaking }) => {
     return (
         <ExpoLinearGradient
             colors={['#0f172a', '#1e293b', '#0f172a']}
@@ -149,21 +155,34 @@ export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmRespo
                     {status === 'idle' && (
                         <>
                             {isSpeaking && <Waveform />}
-                            <TouchableOpacity
-                                onPress={onStartListening}
-                                style={styles.micButtonContainer}
-                                activeOpacity={0.8}
-                            >
-                                <ExpoLinearGradient
-                                    colors={['#3b82f6', '#2563eb']}
-                                    style={styles.micGradient}
-                                    start={{ x: 0.5, y: 0 }}
-                                    end={{ x: 0.5, y: 1 }}
+                            
+                            {isSpeaking ? (
+                                <TouchableOpacity
+                                    onPress={onStopSpeaking}
+                                    style={styles.micButtonContainer}
+                                    activeOpacity={0.8}
                                 >
-                                    <Mic color="#fff" size={64} />
-                                </ExpoLinearGradient>
-                                <View style={styles.micGlow} />
-                            </TouchableOpacity>
+                                    <View style={styles.stopButtonCircle}>
+                                        <Square color="#fff" size={40} fill="#fff" />
+                                    </View>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    onPress={onStartListening}
+                                    style={styles.micButtonContainer}
+                                    activeOpacity={0.8}
+                                >
+                                    <ExpoLinearGradient
+                                        colors={['#3b82f6', '#2563eb']}
+                                        style={styles.micGradient}
+                                        start={{ x: 0.5, y: 0 }}
+                                        end={{ x: 0.5, y: 1 }}
+                                    >
+                                        <Mic color="#fff" size={64} />
+                                    </ExpoLinearGradient>
+                                    <View style={styles.micGlow} />
+                                </TouchableOpacity>
+                            )}
                         </>
                     )}
 
@@ -402,5 +421,15 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '500',
         lineHeight: 28,
+    },
+    stopButtonCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 2,
+        borderColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

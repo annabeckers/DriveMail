@@ -62,6 +62,9 @@ export default function App() {
   // Animations Vars
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  
+  // Audio Ref for stopping playback
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // --- EFFECTS ---
   
@@ -280,8 +283,12 @@ export default function App() {
       if (data.response) {
         const cleanResponse = data.response.trim();
         setLlmResponse(cleanResponse);
-        // Delay speech slightly to allow UI to render text first
-        setTimeout(() => speakText(cleanResponse), 100);
+        
+        // Use requestAnimationFrame to ensure render cycle is complete
+        requestAnimationFrame(() => {
+            // Then wait a bit more for the typing to visually start
+            setTimeout(() => speakText(cleanResponse), 500);
+        });
       }
       setStatus('idle');
     } catch (e) {
@@ -297,6 +304,12 @@ export default function App() {
         return;
       }
 
+      // Stop any previous audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
       const res = await fetch(`${BACKEND_URL}/speech/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -308,6 +321,7 @@ export default function App() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new window.Audio(url);
+      audioRef.current = audio;
       
       audio.onplay = () => setIsSpeaking(true);
       audio.onended = () => setIsSpeaking(false);
@@ -320,6 +334,14 @@ export default function App() {
       setIsSpeaking(false);
     }
   }
+
+  const stopSpeaking = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsSpeaking(false);
+  };
 
   // --- RENDER ---
 
@@ -376,6 +398,7 @@ export default function App() {
             pulseAnim={pulseAnim}
             spin={spin}
             onStartListening={toggleRecording}
+            onStopSpeaking={stopSpeaking}
           />
         )}
 
