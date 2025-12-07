@@ -15,7 +15,7 @@ interface HomeViewProps {
     onStopSpeaking: () => void;
 }
 
-const TypewriterText = ({ text, style }: { text: string, style: any }) => {
+const TypewriterText = React.memo(({ text, style }: { text: string, style: any }) => {
     const [displayedText, setDisplayedText] = useState('');
 
     useEffect(() => {
@@ -23,25 +23,29 @@ const TypewriterText = ({ text, style }: { text: string, style: any }) => {
         let i = 0;
         let timeoutId: any;
 
-        const typeChar = () => {
-            if (i <= text.length) {
-                setDisplayedText(text.slice(0, i));
-                i++;
-                // Variable speed for realism and smoothness
-                timeoutId = setTimeout(typeChar, 15 + Math.random() * 15);
+        const typeChunk = () => {
+            if (i < text.length) {
+                // Increase chunk size to 8 and delay to 50ms to reduce render frequency
+                // This prevents the main thread from being blocked, allowing animations to run smoothly
+                const chunkSize = 8; 
+                const nextIndex = Math.min(i + chunkSize, text.length);
+                setDisplayedText(text.slice(0, nextIndex));
+                i = nextIndex;
+                
+                timeoutId = setTimeout(typeChunk, 50); 
             }
         };
 
-        // Start typing after a brief delay to allow layout to settle
-        timeoutId = setTimeout(typeChar, 100);
+        timeoutId = setTimeout(typeChunk, 100);
 
         return () => clearTimeout(timeoutId);
     }, [text]);
 
     return <Text style={style}>{displayedText}</Text>;
-};
+});
 
 const Waveform = () => {
+    // Native Animation Logic
     const scale1 = useRef(new Animated.Value(1)).current;
     const scale2 = useRef(new Animated.Value(1)).current;
     const scale3 = useRef(new Animated.Value(1)).current;
@@ -49,32 +53,67 @@ const Waveform = () => {
     const scale5 = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
-        const animate = (anim: Animated.Value, delay: number) => {
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(anim, {
-                        toValue: 2.5,
-                        duration: 400 + Math.random() * 200,
-                        easing: Easing.inOut(Easing.ease),
-                        useNativeDriver: true,
-                        delay: delay
-                    }),
-                    Animated.timing(anim, {
-                        toValue: 1,
-                        duration: 400 + Math.random() * 200,
-                        easing: Easing.inOut(Easing.ease),
-                        useNativeDriver: true
-                    })
-                ])
-            ).start();
-        };
+        if (Platform.OS !== 'web') {
+            const animate = (anim: Animated.Value, delay: number) => {
+                Animated.loop(
+                    Animated.sequence([
+                        Animated.timing(anim, {
+                            toValue: 2.5,
+                            duration: 400 + Math.random() * 200,
+                            easing: Easing.inOut(Easing.ease),
+                            useNativeDriver: true,
+                            delay: delay
+                        }),
+                        Animated.timing(anim, {
+                            toValue: 1,
+                            duration: 400 + Math.random() * 200,
+                            easing: Easing.inOut(Easing.ease),
+                            useNativeDriver: true
+                        })
+                    ])
+                ).start();
+            };
 
-        animate(scale1, 0);
-        animate(scale2, 100);
-        animate(scale3, 200);
-        animate(scale4, 300);
-        animate(scale5, 400);
+            animate(scale1, 0);
+            animate(scale2, 100);
+            animate(scale3, 200);
+            animate(scale4, 300);
+            animate(scale5, 400);
+        }
     }, []);
+
+    if (Platform.OS === 'web') {
+        // CSS Animation implementation for Web to avoid JS thread blocking
+        return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', height: 60, justifyContent: 'center', marginBottom: 20 }}>
+                {/* @ts-ignore: Web-only style injection */}
+                <style>{`
+                    @keyframes wave {
+                        0%, 100% { transform: scaleY(1); }
+                        50% { transform: scaleY(2.5); }
+                    }
+                    .wave-bar {
+                        width: 6px;
+                        height: 20px;
+                        background-color: #60a5fa;
+                        border-radius: 3px;
+                        margin: 0 3px;
+                        animation: wave 1s ease-in-out infinite;
+                    }
+                `}</style>
+                {/* @ts-ignore: Web-only div usage */}
+                <div className="wave-bar" style={{ animationDelay: '0s' }} />
+                {/* @ts-ignore: Web-only div usage */}
+                <div className="wave-bar" style={{ animationDelay: '0.1s' }} />
+                {/* @ts-ignore: Web-only div usage */}
+                <div className="wave-bar" style={{ animationDelay: '0.2s' }} />
+                {/* @ts-ignore: Web-only div usage */}
+                <div className="wave-bar" style={{ animationDelay: '0.3s' }} />
+                {/* @ts-ignore: Web-only div usage */}
+                <div className="wave-bar" style={{ animationDelay: '0.4s' }} />
+            </View>
+        );
+    }
 
     const barStyle = {
         width: 6,
@@ -95,7 +134,7 @@ const Waveform = () => {
     );
 };
 
-export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmResponse, isSpeaking, pulseAnim, spin, onStartListening, onStopSpeaking }) => {
+export const HomeView = React.memo<HomeViewProps>(({ status, transcript, llmResponse, isSpeaking, pulseAnim, spin, onStartListening, onStopSpeaking }) => {
     return (
         <ExpoLinearGradient
             colors={['#0f172a', '#1e293b', '#0f172a']}
@@ -114,40 +153,51 @@ export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmRespo
 
                 {/* 2. Middle Section: Conversation Card */}
                 <View style={styles.middleSection}>
-                    {(transcript || llmResponse) ? (
-                        <View style={styles.card}>
-                            <ScrollView 
-                                style={styles.scrollArea}
-                                contentContainerStyle={{ paddingBottom: 20 }}
-                                showsVerticalScrollIndicator={true}
-                            >
-                                {transcript ? <Text style={styles.userText}>You: {transcript}</Text> : null}
-                                
-                                {status === 'processing' && (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                                        <Text style={[styles.aiText, { color: '#60a5fa' }]}>AI is thinking...</Text>
-                                    </View>
-                                )}
-
-                                {llmResponse ? (
-                                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                                        <Text style={[styles.aiText, { marginRight: 5 }]}>AI:</Text>
-                                        <View style={{ flex: 1 }}>
-                                            <TypewriterText text={llmResponse} style={styles.aiText} />
+                    <View style={styles.card}>
+                        <ScrollView 
+                            style={styles.scrollArea}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={true}
+                        >
+                            {/* If we have a transcript or response, show conversation */}
+                            {(transcript || llmResponse) ? (
+                                <>
+                                    {transcript ? <Text style={styles.userText}>You: {transcript}</Text> : null}
+                                    
+                                    {status === 'processing' && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                                            <Text style={[styles.aiText, { color: '#60a5fa' }]}>AI is thinking...</Text>
                                         </View>
-                                    </View>
-                                ) : null}
-                            </ScrollView>
-                        </View>
-                    ) : (
-                        <View style={styles.placeholderContainer}>
-                            <Text style={styles.promptText}>Tippen zum Sprechen</Text>
-                            <View style={styles.exampleBox}>
-                                <Text style={styles.exampleLabel}>Beispiel:</Text>
-                                <Text style={styles.exampleText}>"Nachricht an Müller: Angebot folgt morgen."</Text>
-                            </View>
-                        </View>
-                    )}
+                                    )}
+
+                                    {llmResponse ? (
+                                        <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                                            <Text style={[styles.aiText, { marginRight: 5 }]}>AI:</Text>
+                                            <View style={{ flex: 1 }}>
+                                                <TypewriterText text={llmResponse} style={styles.aiText} />
+                                            </View>
+                                        </View>
+                                    ) : null}
+                                </>
+                            ) : (
+                                /* Otherwise show placeholder content INSIDE the card */
+                                <View style={{ alignItems: 'center', paddingTop: 20 }}>
+                                    <Text style={[styles.promptText, { fontSize: 24, marginBottom: 20 }]}>
+                                        {status === 'listening' ? 'Ich höre zu...' : 
+                                         status === 'processing' ? 'Verarbeite...' : 
+                                         'Tippen zum Sprechen'}
+                                    </Text>
+                                    
+                                    {status === 'idle' && (
+                                        <View style={styles.exampleBox}>
+                                            <Text style={styles.exampleLabel}>Beispiel:</Text>
+                                            <Text style={styles.exampleText}>"Nachricht an Müller: Angebot folgt morgen."</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
                 </View>
 
                 {/* 3. Bottom Section: Controls */}
@@ -235,7 +285,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ status, transcript, llmRespo
             </View>
         </ExpoLinearGradient>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -280,6 +330,7 @@ const styles = StyleSheet.create({
     placeholderContainer: {
         alignItems: 'center',
         width: '100%',
+        display: 'none', // Hide original placeholder container as we moved logic inside card
     },
     promptText: {
         color: '#f1f5f9',
