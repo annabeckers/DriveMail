@@ -4,7 +4,7 @@ import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { ShieldCheck, Loader2 } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
+import { makeRedirectUri, ResponseType } from 'expo-auth-session';
 
 import { DriveMailLogo } from './DriveMailLogo';
 import { GoogleIcon } from './GoogleIcon';
@@ -16,22 +16,21 @@ WebBrowser.maybeCompleteAuthSession();
 interface LoginViewProps {
     isLoggingIn: boolean;
     spin: Animated.AnimatedInterpolation<string | number>;
-    onLogin: (token: string) => void;
+    onLogin: (authData: { code: string, redirectUri: string }) => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin }) => {
 
     const [request, response, promptAsync] = Google.useAuthRequest({
-        androidClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
-        iosClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
-        webClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
+        clientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
         scopes: ['https://www.googleapis.com/auth/gmail.send',
-            'https://www.googleapis.com/auth/gmail.readonly', 
+            'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.compose'
         ],
-        // Use auto-generated Proxy URI with returnUrl handling
-        // @ts-ignore: useProxy is deprecated in types but required for correct Proxy flow in some versions
-        redirectUri: makeRedirectUri({ useProxy: true }),
+        redirectUri: makeRedirectUri({
+            scheme: 'frontend'
+        }),
+        responseType: ResponseType.Code,
     });
 
     useEffect(() => {
@@ -55,9 +54,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin
             }
         }
         if (response?.type === 'success') {
-            const { authentication } = response;
-            if (authentication?.accessToken) {
-                onLogin(authentication.accessToken);
+            if (response.params?.code) {
+                onLogin({
+                    code: response.params.code,
+                    onLogin({
+                        code: response.params.code,
+                    redirectUri: request?.redirectUri || ''
+                });
             }
         }
     }, [response]);
@@ -81,6 +84,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin
                         <TouchableOpacity
                             style={styles.loginButton}
                             activeOpacity={0.8}
+                            // @ts-ignore: useProxy is deprecated but required for this flow
                             onPress={() => promptAsync()}
                             disabled={!request || isLoggingIn}
                         >

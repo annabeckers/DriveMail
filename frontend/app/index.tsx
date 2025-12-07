@@ -26,9 +26,9 @@ import { ReviewModal } from '../components/ReviewModal';
 WebBrowser.maybeCompleteAuthSession();
 
 // Use localhost for Web, LAN IP for Native
-const BACKEND_URL = Platform.OS === 'web' 
-  ? 'http://localhost:8000' 
-  : 'http://192.168.179.49:8000'; 
+const BACKEND_URL = Platform.OS === 'web'
+  ? 'http://localhost:8000'
+  : 'http://192.168.179.49:8000';
 
 export default function App() {
   // --- STATES ---
@@ -57,13 +57,13 @@ export default function App() {
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
   const [llmResponse, setLlmResponse] = useState('');
-  
+
   // Animations Vars
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   // --- EFFECTS ---
-  
+
   // Animation Effect
   useEffect(() => {
     if (status === 'listening') {
@@ -108,35 +108,25 @@ export default function App() {
     }
   };
 
-  const handleLogin = async (token: string | undefined) => {
-    if (!token) return;
+  const handleLogin = async (authData: { code: string, redirectUri: string } | undefined) => {
+    if (!authData) return;
     setIsLoggingIn(true);
     setLoginError(null);
 
     let googleUser = null;
     let dbId = null;
 
-    // 1. Get Google User Info
-    try {
-      const response = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      googleUser = await response.json();
-    } catch (error) {
-      console.log("Google User Info Error:", error);
-      setLoginError("Failed to fetch Google profile.");
-      setIsLoggingIn(false);
-      return;
-    }
-
-    // 2. Authenticate with Backend & Get DB ID
+    // 1. Authenticate with Backend & Get DB ID
     try {
       const res = await fetch(`${BACKEND_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({
+          code: authData.code,
+          redirect_uri: authData.redirectUri
+        }),
       });
-      
+
       if (!res.ok) {
         throw new Error("Backend auth failed");
       }
@@ -144,6 +134,12 @@ export default function App() {
       const data = await res.json();
       if (data.user_id) {
         dbId = data.user_id;
+        // Backend returns email and other info
+        googleUser = {
+          email: data.email,
+          name: data.email.split('@')[0],
+          picture: null // We might want to add picture to backend response if needed
+        };
       }
     } catch (e) {
       console.error('Backend auth error:', e);
@@ -152,7 +148,7 @@ export default function App() {
       return;
     }
 
-    // 3. Update State
+    // 2. Update State
     if (googleUser && dbId) {
       setUserInfo({ ...googleUser, db_id: dbId });
       setCurrentView('home');
@@ -209,7 +205,7 @@ export default function App() {
 
     await recording.stopAndUnloadAsync();
     const uri = recording.getURI();
-    
+
     if (uri) {
       uploadNativeAudio(uri);
     }
@@ -217,10 +213,10 @@ export default function App() {
 
   async function uploadNativeAudio(uri: string) {
     setTranscript('');
-    
+
     try {
       const formData = new FormData();
-      
+
       if (Platform.OS === 'web') {
         const response = await fetch(uri);
         const blob = await response.blob();
@@ -259,7 +255,7 @@ export default function App() {
 
   async function processIntent(text: string) {
     console.log("Processing intent for:", text);
-    
+
     if (!userInfo?.db_id) {
       console.error("User ID not found.");
       return;
@@ -271,10 +267,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, user_id: userInfo.db_id }),
       });
-      
+
       const data = await res.json();
       console.log("Backend response:", data);
-      
+
       if (data.response) {
         setLlmResponse(data.response);
         speakText(data.response);
@@ -298,14 +294,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       });
-      
+
       if (!res.ok) throw new Error('TTS failed');
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new window.Audio(url);
       audio.play();
-      
+
     } catch (e) {
       console.error("TTS Error:", e);
     }
@@ -379,8 +375,8 @@ export default function App() {
         visible={status === 'review' && generatedMail !== null}
         generatedMail={generatedMail}
         onCancel={() => setStatus('idle')}
-        onEdit={() => {}}
-        onSend={() => {}}
+        onEdit={() => { }}
+        onSend={() => { }}
       />
 
     </View>
