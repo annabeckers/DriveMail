@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, create_engine, Session
 import os
 from dotenv import load_dotenv
+from app.models import User, OAuthCredential, Conversation, Message, Task
 
 load_dotenv()
 
