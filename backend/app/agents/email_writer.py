@@ -5,7 +5,20 @@ from ..services.gmail import GmailService
 from typing import Dict, Any
 
 class EmailWriterAgent(BaseAgent):
+    """
+    Agent responsible for generating email drafts using the LLM and the Gmail API.
+    Interacts with Gmail to fetch context and create drafts.
+    """
     def execute(self, slots: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute the agent's logic to generate and draft an email.
+
+        Args:
+            slots (Dict[str, Any]): slots containing 'recipient', 'subject', and 'body' instructions.
+
+        Returns:
+            Dict[str, Any]: Result dictionary containing status, message, and draft information.
+        """
         recipient = slots.get("recipient")
         subject = slots.get("subject")
         raw_body_instruction = slots.get("body")
@@ -44,7 +57,8 @@ class EmailWriterAgent(BaseAgent):
 
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-2.0-flash")
+            from app.core.config import settings
+            model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
             
             prompt = f"""
             Du bist ein professioneller E-Mail-Assistent.

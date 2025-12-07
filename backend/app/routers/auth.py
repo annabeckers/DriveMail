@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from typing import Optional
 from sqlmodel import Session
 from pydantic import BaseModel
 from ..database import get_session
@@ -6,11 +7,9 @@ from ..services.auth import AuthService
 
 router = APIRouter()
 
-class TokenPayload(BaseModel):
-    token: str
-    refresh_token: Optional[str] = None
-    client_id: Optional[str] = None
-    client_secret: Optional[str] = None
+from ..schemas.auth import TokenPayload
+
+# TokenPayload moved to app/schemas/auth.py
 
 @router.post("/google")
 def google_auth(payload: TokenPayload, session: Session = Depends(get_session)):

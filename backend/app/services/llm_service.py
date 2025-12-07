@@ -8,7 +8,17 @@ from app.models import Conversation, Message, Task
 from app.services.agent_service import AgentService
 
 class LLMService:
+    """
+    Service for handling interactions with the Google Gemini LLM.
+    Manages conversation state, intent classification, and slot extraction.
+    """
     def __init__(self, session: Session):
+        """
+        Initialize the LLMService.
+
+        Args:
+            session (Session): Database session for retrieving conversation history.
+        """
         self.session = session
         self.agent_service = AgentService(session)
         self.api_key = os.getenv("GEMINI_API_KEY")
@@ -17,6 +27,16 @@ class LLMService:
         genai.configure(api_key=self.api_key)
 
     def process_message(self, text: str, user_id: int) -> dict:
+        """
+        Process a user message, update conversation state, and generate a response.
+
+        Args:
+            text (str): The user's input text.
+            user_id (int): The ID of the user.
+
+        Returns:
+            dict: JSON response containing intent, extracted slots, and agent response.
+        """
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
@@ -68,27 +88,38 @@ class LLMService:
         User Input: "{request.text}"
         
         Instructions:
-        1. Identify the intent from the user's input. If the intent is already known in Current State, continue with it unless the user explicitly changes topic.
-        2. Extract values for the slots defined in the schema for that intent.
-        3. If a required slot is missing, your 'response' should be the 'prompt' defined in the schema for that slot.
-        4. If all required slots are filled, your 'response' should be a confirmation message in German, like "Bereit, die E-Mail an [recipient] mit dem Betreff [subject] zu senden...".
-        5. If the intent is 'chitchat', provide a helpful and natural response in German in the 'response' field. Explain your capabilities if asked.
-        6. Return a JSON object with the following structure:
+        1. **Analyze Intent**: Identify the intent from the user's input.
+           - If the intent is already known in Current State, continue with it unless the user explicitly changes topic.
+           - **Ambiguity Check**: If the user's input is ambiguous (e.g., "I want to send" -> write new or send draft?), ask for clarification in 'response' and set 'intent' to null or keep previous.
+           - Be careful not to confuse "sending" with "writing". 'send_email' is for drafting. 'confirm_send' is ONLY for actually dispatching the email.
+        
+        2. **Slot Extraction & Validation**: Extract values for the slots defined in the schema.
+           - **CRITICAL**: For 'send_email' or 'confirm_send', you MUST have a 'recipient'. If 'recipient' is missing in both Current State and User Input, you CANNOT set 'completed' to true.
+           - If a required slot is missing, your 'response' MUST be the 'prompt' defined in the schema for that slot (e.g., "An wen soll die E-Mail gehen?").
+           - Do not make up or hallucinate email addresses.
+           - **Verification**: If you extract a complex slot like 'recipient' (especially if phonetically spelled out), you MUST ask for confirmation in 'response' (e.g., "I understood [email]. Is that correct?"). Do NOT set 'completed' to true until the user confirms (unless they just confirmed it).
+        
+        3. **Formulate Response**:
+           - If a required slot is missing: Ask for it clearly.
+           - If verification is needed: Ask for confirmation.
+           - If all required slots are filled AND verified: valid response is a confirmation message in German, like "Bereit, die E-Mail an [recipient] mit dem Betreff [subject] zu senden...".
+           - **NEVER** say "E-Mail gesendet" (Email sent) in the 'send_email' intent. That is only for 'confirm_send' AFTER success.
+        
+        4. **Return JSON**:
         {{
             "intent": "string (name of the intent)",
             "slots": {{ "slot_name": "extracted_value" }},
             "missing_slots": ["slot_name"],
             "response": "string (what to say back to the user)",
-            "completed": boolean (true if all required slots are filled)
+            "completed": boolean (true ONLY if all required slots are present AND verified)
         }}
         
         Only return the JSON object, no markdown formatting.
         """
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-2.0-flash", generation_config={"response_mime_type": "application/json"})
-            
+            from app.core.config import settings
+            model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME, generation_config={"response_mime_type": "application/json"})
             response = model.generate_content(system_prompt)
             print(f"DEBUG: LLM Raw Response: {response.text}")
             result_json = json.loads(response.text)
