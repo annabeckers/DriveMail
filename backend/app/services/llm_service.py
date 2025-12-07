@@ -4,8 +4,12 @@ import google.generativeai as genai
 from datetime import datetime
 from sqlmodel import Session, select
 from fastapi import HTTPException
-from app.models import Conversation, Message, Task
+from app.models import Conversation, Message, Task, OAuthCredential
 from app.services.agent_service import AgentService
+from app.agents.email_writer import EmailWriterAgent
+from app.agents.email_reader import EmailReaderAgent
+from app.agents.email_summarizer import EmailSummarizerAgent
+from app.agents.send_email import SendEmailAgent
 
 class LLMService:
     """
@@ -49,24 +53,24 @@ class LLMService:
             raise HTTPException(status_code=500, detail=f"Could not load intent schema: {e}")
 
         # 2. Get or Create Conversation
-        conversation = session.exec(select(Conversation).where(Conversation.user_id == request.user_id).order_by(Conversation.updated_at.desc())).first()
+        conversation = self.session.exec(select(Conversation).where(Conversation.user_id == user_id).order_by(Conversation.updated_at.desc())).first()
         
         if not conversation:
-            conversation = Conversation(user_id=request.user_id, state="{}")
-            session.add(conversation)
-            session.commit()
-            session.refresh(conversation)
+            conversation = Conversation(user_id=user_id, state="{}")
+            self.session.add(conversation)
+            self.session.commit()
+            self.session.refresh(conversation)
 
         # 3. Save User Message
-        user_msg = Message(conversation_id=conversation.id, role="user", content=request.text)
-        session.add(user_msg)
-        session.commit()
+        user_msg = Message(conversation_id=conversation.id, role="user", content=text)
+        self.session.add(user_msg)
+        self.session.commit()
 
         # 4. Construct Prompt for Gemini
         current_state = json.loads(conversation.state)
         
         print(f"--- DEBUG: process_intent ---")
-        print(f"User Input: {request.text}")
+        print(f"User Input: {text}")
         print(f"Current State: {current_state}")
         
         system_prompt = f"""
@@ -85,7 +89,7 @@ class LLMService:
         Current State:
         {json.dumps(current_state, indent=2)}
         
-        User Input: "{request.text}"
+        User Input: "{text}"
         
         Instructions:
         1. **Analyze Intent**: Identify the intent from the user's input.
@@ -138,7 +142,7 @@ class LLMService:
                 slots = new_state["slots"]
                 
                 # Get User Credentials
-                creds = session.exec(select(OAuthCredential).where(OAuthCredential.user_id == request.user_id)).first()
+                creds = self.session.exec(select(OAuthCredential).where(OAuthCredential.user_id == user_id)).first()
                 if not creds:
                     result_json["response"] = "Fehler: Keine Anmeldeinformationen gefunden."
                 else:
@@ -158,7 +162,7 @@ class LLMService:
                          agent_response = {"status": "success", "message": result_json.get("response")}
                     elif intent_name == "confirm_send":
                          # We need to find the last draft created in this conversation
-                         last_task = session.exec(select(Task).where(Task.conversation_id == conversation.id).where(Task.intent == "send_email").order_by(Task.created_at.desc())).first()
+                         last_task = self.session.exec(select(Task).where(Task.conversation_id == conversation.id).where(Task.intent == "send_email").order_by(Task.created_at.desc())).first()
                          
                          draft_id = None
                          if last_task and last_task.result:
@@ -184,7 +188,7 @@ class LLMService:
                             result=json.dumps(agent_response),
                             completed_at=datetime.utcnow()
                         )
-                        session.add(task)
+                        self.session.add(task)
                         
                         # Update Response to User
                         if agent_response.get("status") == "success":
@@ -197,12 +201,12 @@ class LLMService:
 
             conversation.state = json.dumps(new_state)
             conversation.updated_at = datetime.utcnow()
-            session.add(conversation)
+            self.session.add(conversation)
             
             # 6. Save Assistant Message
             assistant_msg = Message(conversation_id=conversation.id, role="assistant", content=result_json.get("response"))
-            session.add(assistant_msg)
-            session.commit()
+            self.session.add(assistant_msg)
+            self.session.commit()
             
             return result_json
 
