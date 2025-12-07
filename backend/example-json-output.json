@@ -85,6 +85,11 @@
       "name": "confirm_send",
       "description": "Confirm sending a previously created draft",
       "slots": []
+    },
+    {
+      "name": "chitchat",
+      "description": "General conversation, greetings, or questions about the assistant's capabilities",
+      "slots": []
     }
   ]
 }

@@ -2,6 +2,7 @@
   "expo": {
     "name": "frontend",
     "slug": "frontend",
+    "owner": "annabeckers",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,15 +10,32 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.annabeckers.DriveMail",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "fetch"
+        ]
+      }
     },
     "android": {
+      "package": "com.annabeckers.DriveMail",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "intentFilters": [
+        {
+          "action": "android.intent.action.MAIN",
+          "category": [
+            "android.intent.category.CAR_DOCK",
+            "com.google.android.gms.car.application"
+          ]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },

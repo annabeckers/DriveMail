@@ -1,0 +1,51 @@
+{
+  "intent": "determine_user_action",
+  "action_options": [
+    {
+      "action": "read_email",
+      "parameters": {
+        "email_id": "string (specific email identifier)",
+        "unread_only": "boolean",
+        "folder": "string (e.g., inbox, spam, sent)",
+        "date_range": {
+          "from": "YYYY-MM-DD",
+          "to": "YYYY-MM-DD"
+        },
+        "sender": "string (email address or name)"
+      }
+    },
+    {
+      "action": "read_thread_history",
+      "parameters": {
+        "thread_id": "string (specific thread identifier)",
+        "with_person": "string (email address or name)",
+        "limit_messages": "integer",
+        "include_attachments": "boolean"
+      }
+    },
+    {
+      "action": "send_email",
+      "parameters": {
+        "to": ["string"],
+        "cc": ["string"],
+        "bcc": ["string"],
+        "subject": "string",
+        "body": "string",
+        "attachments": ["string (file paths or URLs)"],
+        "schedule_send": "YYYY-MM-DDTHH:MM:SS"
+      }
+    },
+    {
+      "action": "draft_email",
+      "parameters": {
+        "to": ["string"],
+        "cc": ["string"],
+        "bcc": ["string"],
+        "subject": "string",
+        "body": "string",
+        "attachments": ["string (file paths or URLs)"],
+        "draft_name": "string"
+      }
+    }
+  ]
+}
