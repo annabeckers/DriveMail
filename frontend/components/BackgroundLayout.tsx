@@ -153,7 +153,8 @@ const styles = StyleSheet.create({
         opacity: 0.2, // Increased opacity for native since blur isn't there
         ...Platform.select({
             web: {
-                filter: 'blur(100px)',
+                filter: 'blur(60px)',
+                willChange: 'transform', // Hardware acceleration hint
             },
             default: {
                 // Native specific fallback if needed, or just let it be a sharp circle with low opacity

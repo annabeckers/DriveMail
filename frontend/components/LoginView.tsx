@@ -16,13 +16,13 @@ WebBrowser.maybeCompleteAuthSession();
 interface LoginViewProps {
     isLoggingIn: boolean;
     spin: Animated.AnimatedInterpolation<string | number>;
-    onLogin: (authData: { code: string, redirectUri: string }) => void;
+    onLogin: (authData: { code: string, redirectUri: string, codeVerifier?: string }) => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin }) => {
 
     const [request, response, promptAsync] = Google.useAuthRequest({
-        clientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
+        webClientId: '479833791667-fua2rjtjbjv5qrdthe5sdlqaslr613hc.apps.googleusercontent.com',
         scopes: ['https://www.googleapis.com/auth/gmail.send',
             'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.compose'
@@ -31,6 +31,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin
             scheme: 'frontend'
         }),
         responseType: ResponseType.Code,
+        shouldAutoExchangeCode: false,
     });
 
     useEffect(() => {
@@ -57,9 +58,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ isLoggingIn, spin, onLogin
             if (response.params?.code) {
                 onLogin({
                     code: response.params.code,
-                    onLogin({
-                        code: response.params.code,
-                    redirectUri: request?.redirectUri || ''
+                    redirectUri: request?.redirectUri || '',
+                    codeVerifier: request?.codeVerifier
                 });
             }
         }

@@ -108,7 +108,7 @@ export default function App() {
     }
   };
 
-  const handleLogin = async (authData: { code: string, redirectUri: string } | undefined) => {
+  const handleLogin = async (authData: { code: string, redirectUri: string, codeVerifier?: string } | undefined) => {
     if (!authData) return;
     setIsLoggingIn(true);
     setLoginError(null);
@@ -123,7 +123,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: authData.code,
-          redirect_uri: authData.redirectUri
+          redirect_uri: authData.redirectUri,
+          code_verifier: authData.codeVerifier
         }),
       });
 

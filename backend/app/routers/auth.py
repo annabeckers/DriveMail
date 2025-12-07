@@ -13,6 +13,7 @@ router = APIRouter()
 class AuthPayload(BaseModel):
     code: str
     redirect_uri: str
+    code_verifier: str | None = None
 
 @router.post("/google")
 def google_auth(payload: AuthPayload, session: Session = Depends(get_session)):
@@ -44,7 +45,7 @@ def google_auth(payload: AuthPayload, session: Session = Depends(get_session)):
             redirect_uri=payload.redirect_uri
         )
         
-        flow.fetch_token(code=payload.code)
+        flow.fetch_token(code=payload.code, code_verifier=payload.code_verifier)
         creds = flow.credentials
 
         # 2. Verify Token & Get User Info from Google
