@@ -1,4 +1,4 @@
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.models import OAuthCredential
 from app.agents.email_writer import EmailWriterAgent
 from app.agents.email_reader import EmailReaderAgent

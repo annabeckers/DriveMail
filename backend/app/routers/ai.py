@@ -11,12 +11,7 @@ load_dotenv()
 
 router = APIRouter()
 
-class AIRequest(BaseModel):
-    prompt: str
-
-class IntentRequest(BaseModel):
-    text: str
-    user_id: int
+from ..schemas.ai import AIRequest, IntentRequest
 
 @router.post("/generate")
 def generate_text(request: AIRequest):
