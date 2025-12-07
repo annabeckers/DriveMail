@@ -1,5 +1,6 @@
 .vscode/
 .venv
+venv/
 backend/.env
 frontend/node_modules
 __pycache__/
@@ -7,3 +8,4 @@ __pycache__/
 *.pyo
 *.pyd
 node_modules/
+backend/scripts/verify_api.py
