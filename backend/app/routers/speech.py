@@ -28,7 +28,7 @@ class SpeakRequest(BaseModel):
     text: str
 
 @router.post("/speak")
-async def speak_text(request: SpeakRequest):
+def speak_text(request: SpeakRequest):
     """
     Generate speech from text using Google Cloud Text-to-Speech (Neural2 Voice).
     """

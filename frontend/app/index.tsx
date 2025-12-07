@@ -56,6 +56,7 @@ export default function App() {
   // --- AUDIO STATE ---
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [llmResponse, setLlmResponse] = useState('');
   
   // Animations Vars
@@ -243,9 +244,10 @@ export default function App() {
 
       const data = await res.json();
       if (data.text) {
-        setTranscript(data.text);
+        const cleanText = data.text.trim();
+        setTranscript(cleanText);
         // Process Intent
-        await processIntent(data.text);
+        await processIntent(cleanText);
       } else {
         setTranscript('Could not transcribe audio.');
         setStatus('idle');
@@ -276,8 +278,10 @@ export default function App() {
       console.log("Backend response:", data);
       
       if (data.response) {
-        setLlmResponse(data.response);
-        speakText(data.response);
+        const cleanResponse = data.response.trim();
+        setLlmResponse(cleanResponse);
+        // Delay speech slightly to allow UI to render text first
+        setTimeout(() => speakText(cleanResponse), 100);
       }
       setStatus('idle');
     } catch (e) {
@@ -304,10 +308,16 @@ export default function App() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new window.Audio(url);
+      
+      audio.onplay = () => setIsSpeaking(true);
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => setIsSpeaking(false);
+      
       audio.play();
       
     } catch (e) {
       console.error("TTS Error:", e);
+      setIsSpeaking(false);
     }
   }
 
@@ -362,6 +372,7 @@ export default function App() {
             status={status}
             transcript={transcript}
             llmResponse={llmResponse}
+            isSpeaking={isSpeaking}
             pulseAnim={pulseAnim}
             spin={spin}
             onStartListening={toggleRecording}
